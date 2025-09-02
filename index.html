@@ -3,93 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Check-in</title>
-    <!-- Tailwind CSS para el diseño -->
+    <title>Sistema de Check-in con Acompañantes</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Librería jsQR para decodificar QR -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        #scanned-id-display { font-family: 'Source Code Pro', monospace; } /* Fuente monoespaciada para IDs */
-        #video-container { 
-            position: relative; 
-            width: 100%; 
-            max-width: 500px; 
-            border-radius: 1rem; 
-            overflow: hidden;
-            border: 4px solid #374151;
-        }
-        /* Línea de escaneo animada */
-        #video-container::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: rgba(59, 130, 246, 0.8);
-            box-shadow: 0 0 10px rgba(59, 130, 246, 1);
-            animation: scan-line 2s infinite ease-in-out;
-        }
-        @keyframes scan-line {
-            0% { transform: translateY(-120px); }
-            50% { transform: translateY(120px); }
-            100% { transform: translateY(-120px); }
-        }
+        #video-container { position: relative; width: 100%; max-width: 500px; border-radius: 1rem; overflow: hidden; border: 4px solid #374151; }
+        #video-container::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(59, 130, 246, 0.8); box-shadow: 0 0 10px rgba(59, 130, 246, 1); animation: scan-line 2s infinite ease-in-out; }
+        @keyframes scan-line { 0% { transform: translateY(-120px); } 50% { transform: translateY(120px); } 100% { transform: translateY(-120px); } }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-2xl bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 text-center space-y-6">
-        
         <header class="space-y-2">
-            <h1 class="text-3xl md:text-4xl font-bold text-blue-400">Sistema de Check-in de Evento</h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-400">Sistema de Check-in</h1>
             <p class="text-gray-400">Apunta la cámara al código QR del invitado.</p>
         </header>
-
         <div id="video-container" class="w-full mx-auto shadow-lg">
             <video id="video" playsinline class="w-full h-auto"></video>
             <canvas id="canvas" class="hidden"></canvas>
         </div>
-        
-        <!-- Área de estado del escaneo -->
-        <div class="bg-gray-900/50 rounded-xl p-6 space-y-3">
-            <div>
-                <p class="text-sm text-gray-500 mb-1">Estado del Registro:</p>
-                <div id="scan-status" class="text-lg font-medium h-12 flex items-center justify-center rounded-lg transition-all duration-300">
-                    Iniciando cámara...
+        <div class="bg-gray-900/50 rounded-xl p-6 space-y-2">
+            <p class="text-sm text-gray-500">Estado del Registro:</p>
+            <div id="scan-status" class="text-lg font-medium h-12 flex items-center justify-center rounded-lg transition-all duration-300">Iniciando cámara...</div>
+            <p class="text-sm text-gray-500 pt-2">ID Escaneado:</p>
+            <div id="scanned-id-display" class="text-md font-mono text-cyan-300 h-6 truncate">---</div>
+        </div>
+    </div>
+
+    <!-- Modal para Acompañantes -->
+    <div id="companion-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-gray-800 rounded-2xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl">
+            <!-- Paso 1: Preguntar -->
+            <div id="companion-step-1">
+                <h2 class="text-2xl font-bold text-cyan-400">Acceso Validado</h2>
+                <p class="text-gray-300 mt-2">¿El invitado tiene acompañantes?</p>
+                <div class="flex justify-center gap-4 mt-6">
+                    <button id="btn-no-companions" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition-transform hover:scale-105">No</button>
+                    <button id="btn-yes-companions" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-transform hover:scale-105">Sí</button>
                 </div>
             </div>
-            <!-- NUEVO: Campo para mostrar el ID escaneado -->
-            <div class="pt-3 border-t border-gray-700">
-                 <p class="text-sm text-gray-500 mb-1">ID Escaneado:</p>
-                 <div id="scanned-id-display" class="text-lg text-gray-300 h-8 flex items-center justify-center truncate">
-                    -
-                 </div>
+            <!-- Paso 2: Introducir número -->
+            <div id="companion-step-2" class="hidden">
+                 <h2 class="text-2xl font-bold text-cyan-400">Registrar Acompañantes</h2>
+                 <p class="text-gray-300 mt-2">Introduce el número de personas.</p>
+                 <input type="number" id="companion-count-input" class="mt-4 w-full bg-gray-900 border border-gray-700 text-white text-center text-4xl rounded-lg p-3" min="0" value="1">
+                 <button id="btn-save-companions" class="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg w-full text-lg">Guardar Acompañantes</button>
             </div>
+            <!-- Estado de guardado -->
+            <div id="companion-status" class="hidden h-12 flex items-center justify-center text-lg"></div>
         </div>
     </div>
 
     <script>
+        // Elementos del DOM
         const video = document.getElementById('video');
         const canvasElement = document.getElementById('canvas');
         const canvas = canvasElement.getContext('2d');
         const statusDiv = document.getElementById('scan-status');
-        const scannedIdDisplay = document.getElementById('scanned-id-display'); // Nuevo elemento
+        const idDisplay = document.getElementById('scanned-id-display');
+        const companionModal = document.getElementById('companion-modal');
+        const companionStep1 = document.getElementById('companion-step-1');
+        const companionStep2 = document.getElementById('companion-step-2');
+        const btnNoCompanions = document.getElementById('btn-no-companions');
+        const btnYesCompanions = document.getElementById('btn-yes-companions');
+        const companionCountInput = document.getElementById('companion-count-input');
+        const btnSaveCompanions = document.getElementById('btn-save-companions');
+        const companionStatus = document.getElementById('companion-status');
+        
         let scanCooldown = false;
+        let currentScannedId = null;
 
         const MI_API_URL = "https://script.google.com/macros/s/AKfycbwEjmLo_nuE5geH5Rln3BBSEtXA2RAm7s3vk58h3tVVOJ0WrfbF884axy9T6cmnt-qz/exec"; 
 
         function startCamera() {
             if (!MI_API_URL.includes("script.google.com")) {
                 statusDiv.textContent = "Error: Configura la URL de la API.";
-                statusDiv.className = "text-lg font-medium h-12 flex items-center justify-center rounded-lg bg-red-500/20 text-red-300";
                 return;
             }
-
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
                 .then(stream => {
                     video.srcObject = stream;
@@ -97,9 +90,7 @@
                     statusDiv.textContent = "Esperando código QR...";
                     requestAnimationFrame(tick);
                 }).catch(err => {
-                    console.error("Error al acceder a la cámara:", err);
                     statusDiv.textContent = "Error: Permiso de cámara denegado.";
-                    statusDiv.className = "text-lg font-medium h-12 flex items-center justify-center rounded-lg bg-red-500/20 text-red-300";
                 });
         }
 
@@ -113,6 +104,7 @@
 
                 if (code && !scanCooldown) {
                     scanCooldown = true;
+                    idDisplay.textContent = code.data;
                     handleQRCode(code.data);
                 }
             }
@@ -120,39 +112,82 @@
         }
 
         function handleQRCode(scannedID) {
-            // CAMBIO: Muestra el ID inmediatamente
-            scannedIdDisplay.textContent = scannedID;
-
             statusDiv.textContent = "Procesando ID...";
-            statusDiv.className = "text-lg font-medium h-12 flex items-center justify-center rounded-lg bg-blue-500/20 text-blue-300";
-
             fetch(`${MI_API_URL}?id=${scannedID}`)
                 .then(response => response.json())
                 .then(data => {
                     statusDiv.textContent = data.message;
                     if (data.status === 'success') {
-                        statusDiv.className = "text-lg font-medium h-12 flex items-center justify-center rounded-lg bg-green-500/20 text-green-300";
-                    } else if (data.status === 'warning') {
-                        statusDiv.className = "text-lg font-medium h-12 flex items-center justify-center rounded-lg bg-yellow-500/20 text-yellow-300";
+                        currentScannedId = scannedID;
+                        showCompanionModal();
                     } else {
-                        statusDiv.className = "text-lg font-medium h-12 flex items-center justify-center rounded-lg bg-red-500/20 text-red-300";
+                        resetScannerStateAfterDelay(3000);
                     }
                 })
                 .catch(error => {
-                    console.error('Error en la llamada a la API:', error);
                     statusDiv.textContent = "Error de conexión con el servidor.";
-                    statusDiv.className = "text-lg font-medium h-12 flex items-center justify-center rounded-lg bg-red-500/20 text-red-300";
-                })
-                .finally(() => {
-                    setTimeout(() => { 
-                        scanCooldown = false;
-                        statusDiv.textContent = "Esperando código QR...";
-                        statusDiv.className = "text-lg font-medium h-12 flex items-center justify-center rounded-lg";
-                        // CAMBIO: Limpia el ID después del cooldown
-                        scannedIdDisplay.textContent = "-";
-                    }, 3000);
+                    resetScannerStateAfterDelay(3000);
                 });
         }
+
+        function showCompanionModal() {
+            companionModal.classList.remove('hidden');
+            companionStep1.classList.remove('hidden');
+            companionStep2.classList.add('hidden');
+            companionStatus.classList.add('hidden');
+        }
+
+        function hideCompanionModal() {
+            companionModal.classList.add('hidden');
+            resetScannerStateAfterDelay(1000);
+        }
+
+        function resetScannerStateAfterDelay(delay) {
+            setTimeout(() => {
+                scanCooldown = false;
+                currentScannedId = null;
+                statusDiv.textContent = "Esperando código QR...";
+                idDisplay.textContent = "---";
+            }, delay);
+        }
+
+        // Event listeners para el modal
+        btnNoCompanions.addEventListener('click', () => {
+            hideCompanionModal();
+        });
+
+        btnYesCompanions.addEventListener('click', () => {
+            companionStep1.classList.add('hidden');
+            companionStep2.classList.remove('hidden');
+            companionCountInput.value = 1;
+            companionCountInput.focus();
+        });
+
+        btnSaveCompanions.addEventListener('click', () => {
+            const count = companionCountInput.value;
+            if (count === '' || count < 0) {
+                alert("Por favor, introduce un número válido.");
+                return;
+            }
+
+            companionStep2.classList.add('hidden');
+            companionStatus.classList.remove('hidden');
+            companionStatus.textContent = "Guardando...";
+
+            const updateUrl = `${MI_API_URL}?id=${currentScannedId}&companions=${count}`;
+
+            fetch(updateUrl)
+                .then(response => response.json())
+                .then(data => {
+                    companionStatus.textContent = data.message;
+                })
+                .catch(error => {
+                    companionStatus.textContent = "Error de conexión.";
+                })
+                .finally(() => {
+                    setTimeout(hideCompanionModal, 2000);
+                });
+        });
 
         startCamera();
     </script>
